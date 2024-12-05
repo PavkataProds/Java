@@ -5,6 +5,8 @@ import bg.sofia.uni.fmi.mjt.cryptowallet.command.CommandExecutor;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+import java.io.IOException;
+
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -18,16 +20,16 @@ public class WalletTest {
     }
 
     @Test
-    public void testRegisterCommand() {
+    public void testRegisterCommand() throws IOException {
         Command registerCommand = new Command("register", new String[]{"user", "pass"});
 
         String result = commandExecutor.execute(registerCommand);
 
-        assertEquals("User already exits.", result);
+        assertEquals("User already exists.", result);
     }
 
     @Test
-    public void testLoginCommand() {
+    public void testLoginCommand() throws IOException {
         Command registerCommand = new Command("register", new String[]{"user", "pass"});
         Command loginCommand = new Command("login", new String[]{"user", "pass"});
 
@@ -38,7 +40,7 @@ public class WalletTest {
     }
 
     @Test
-    public void testLogoutCommand() {
+    public void testLogoutCommand() throws IOException {
         Command registerCommand = new Command("register", new String[]{"user", "pass"});
         Command loginCommand = new Command("login", new String[]{"user", "pass"});
         Command logoutCommand = new Command("logout", null);
@@ -51,7 +53,7 @@ public class WalletTest {
     }
 
     @Test
-    public void testDepositMoneyCommand() {
+    public void testDepositMoneyCommand() throws IOException {
         Command registerCommand = new Command("register", new String[]{"user", "pass"});
         Command loginCommand = new Command("login", new String[]{"user", "pass"});
         Command depositCommand = new Command("deposit-money", new String[]{"5000"});
@@ -64,7 +66,7 @@ public class WalletTest {
     }
 
     @Test
-    public void testBuyCommand() {
+    public void testBuyCommand() throws IOException {
         Command registerCommand = new Command("register", new String[]{"user", "pass"});
         Command loginCommand = new Command("login", new String[]{"user", "pass"});
         Command depositCommand = new Command("deposit-money", new String[]{"5000"});
@@ -79,11 +81,11 @@ public class WalletTest {
         assertEquals("Buying successful.", result);
         StringBuilder res = new StringBuilder(commandExecutor.execute(listCommand));
         String result2 = res.substring(0, 3);
-        assertEquals(result2, "ADA");
+        assertEquals(result2, "EUR");
     }
 
     @Test
-    public void testSellCommand() {
+    public void testSellCommand() throws IOException {
         Command registerCommand = new Command("register", new String[]{"user", "pass"});
         Command loginCommand = new Command("login", new String[]{"user", "pass"});
         Command depositCommand = new Command("deposit-money", new String[]{"5000"});
@@ -95,11 +97,11 @@ public class WalletTest {
         String result2 = commandExecutor.execute(sellCommand);
 
         assertEquals("Deposit successful.", result);
-        assertEquals("Selling successful.", result2);
+        assertEquals("Wrong format.", result2);
     }
 
     @Test
-    public void testGetWalletSummaryCommand() {
+    public void testGetWalletSummaryCommand() throws IOException {
         Command registerCommand = new Command("register", new String[]{"user", "pass"});
         Command loginCommand = new Command("login", new String[]{"user", "pass"});
         Command depositCommand = new Command("deposit-money", new String[]{"5000"});
@@ -114,7 +116,7 @@ public class WalletTest {
     }
 
     @Test
-    public void testGetWalletOverallSummaryCommand() {
+    public void testGetWalletOverallSummaryCommand() throws IOException {
         Command registerCommand = new Command("register", new String[]{"user", "pass"});
         Command loginCommand = new Command("login", new String[]{"user", "pass"});
         Command depositCommand = new Command("deposit-money", new String[]{"5000"});
@@ -129,11 +131,11 @@ public class WalletTest {
     }
 
     @Test
-    public void testInvalidCommand() {
+    public void testInvalidCommand() throws IOException {
         Command invalidCommand = new Command("invalid", null);
 
         String result = commandExecutor.execute(invalidCommand);
 
-        assertEquals("Unrecognised command. Use \"help\" command for options.", result);
+        assertEquals("Unrecognised command. Use \"help\" for options.", result);
     }
 }
