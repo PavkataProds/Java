@@ -6,7 +6,7 @@ import java.util.logging.Logger;
 import java.util.logging.SimpleFormatter;
 
 public class ServerLogger {
-    private static Logger logger = Logger.getLogger(ServerLogger.class.getName());
+    private static final Logger logger = Logger.getLogger(ServerLogger.class.getName());
     private final String logPath;
 
     public ServerLogger(String logPath) {

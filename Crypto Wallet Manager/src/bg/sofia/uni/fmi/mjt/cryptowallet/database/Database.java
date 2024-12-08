@@ -18,10 +18,10 @@ import java.util.concurrent.TimeUnit;
 public class Database implements DatabaseAPI {
     private static final int PERIOD_OF_SAVING = 5;
     private static final String NEW_LINE = System.lineSeparator();
-    private Path filePath;
+    private final Path filePath;
 
-    private Set<User> database = new HashSet<>();
-    private static ScheduledExecutorService scheduler = Executors.newSingleThreadScheduledExecutor();
+    private final Set<User> database = new HashSet<>();
+    private static final ScheduledExecutorService scheduler = Executors.newSingleThreadScheduledExecutor();
 
     public Database(Path filePath) {
         this.filePath = filePath;
@@ -79,7 +79,7 @@ public class Database implements DatabaseAPI {
                 Files.createFile(filePath);
             }
 
-            Files.write(filePath, result.toString().getBytes(StandardCharsets.UTF_8));
+            Files.writeString(filePath, result.toString());
 
         } catch (IOException e) {
             throw new UncheckedIOException("An error has occurred while saving to file", e);

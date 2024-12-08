@@ -5,7 +5,7 @@ public class UserAlreadyExistsException extends RuntimeException {
         super();
     }
 
-//    public UserAlreadyExistsException(String message) {
-//        super(message);
-//    }
+    public UserAlreadyExistsException(String message) {
+        super(message);
+    }
 }

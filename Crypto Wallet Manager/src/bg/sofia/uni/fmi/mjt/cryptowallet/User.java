@@ -15,7 +15,7 @@ public class User implements Serializable {
     private final byte[] salt;
     private final Wallet wallet;
     private final int byteSize = 16;
-    private final boolean isAdmin;
+    private boolean isAdmin;
     private static final String DELIMITER = "/";
 
     public User(String name, String password) throws NoSuchAlgorithmException {
@@ -64,6 +64,10 @@ public class User implements Serializable {
         return name.equals(this.name) && Arrays.equals(hashedPassword, this.password);
     }
 
+    public void changeAdminStatus() {
+        isAdmin = !isAdmin;
+    }
+
     public static User fromCSV(String line) throws NoSuchAlgorithmException {
         String[] tokens = line.split(DELIMITER);
 
@@ -73,15 +77,13 @@ public class User implements Serializable {
     }
 
     public String toCSV() {
-        StringBuilder result = new StringBuilder();
 
         int adminValue = isAdmin ? 1 : 0;
 
-        result.append(adminValue).append(DELIMITER)
-                .append(name).append(DELIMITER)
-                .append(Arrays.toString(password))
-                .append(Arrays.toString(salt));
-
-        return result.append(wallet.toCSV()).toString();
+        return adminValue + DELIMITER +
+                name + DELIMITER +
+                Arrays.toString(password) +
+                Arrays.toString(salt) +
+                wallet.toCSV();
     }
 }

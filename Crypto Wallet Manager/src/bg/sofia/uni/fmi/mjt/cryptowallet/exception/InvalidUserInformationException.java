@@ -5,7 +5,7 @@ public class InvalidUserInformationException extends RuntimeException {
         super();
     }
 
-//    public InvalidUserInformationException(String message) {
-//        super(message);
-//    }
+    public InvalidUserInformationException(String message) {
+        super(message);
+    }
 }

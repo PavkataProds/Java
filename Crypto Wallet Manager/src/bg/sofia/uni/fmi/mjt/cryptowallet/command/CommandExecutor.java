@@ -2,25 +2,41 @@ package bg.sofia.uni.fmi.mjt.cryptowallet.command;
 
 import bg.sofia.uni.fmi.mjt.cryptowallet.CurrencyCode;
 import bg.sofia.uni.fmi.mjt.cryptowallet.User;
+import bg.sofia.uni.fmi.mjt.cryptowallet.database.Database;
+import bg.sofia.uni.fmi.mjt.cryptowallet.exception.FailedRequestException;
 import bg.sofia.uni.fmi.mjt.cryptowallet.exception.InsufficientBalanceException;
 import bg.sofia.uni.fmi.mjt.cryptowallet.exception.UserAlreadyExistsException;
 import bg.sofia.uni.fmi.mjt.cryptowallet.provider.HttpCaller;
-import bg.sofia.uni.fmi.mjt.cryptowallet.provider.ObjectSerializable;
+//import bg.sofia.uni.fmi.mjt.cryptowallet.provider.ObjectSerializable;
+import bg.sofia.uni.fmi.mjt.cryptowallet.response.ApiCall;
+import bg.sofia.uni.fmi.mjt.cryptowallet.server.ServerLogger;
 
 import java.io.IOException;
 import java.math.BigDecimal;
 import java.net.URISyntaxException;
 import java.nio.channels.SelectionKey;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.security.NoSuchAlgorithmException;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
+
+import java.net.http.HttpClient;
 
 public class CommandExecutor {
 
-    private static final String LOGIN_REQUIRED = "Login required. Use \"login \\name\\ \\password\\\" or \"register \\name\\ \\password\\\".";
+    //Messages
+    private static final String LOGIN_REQUIRED =
+            "Login required. Use \"login \\name\\ \\password\\\" or \"register \\name\\ \\password\\\".";
     private static final String ALREADY_LOGGED_IN = "You are already log in. Use \"logout\" first";
     private static final String IO_SERVER_EXCEPTION = "An error with the server appeared.";
     private static final String REGISTER_SUCCESSFUL = "Register successful.";
     private static final String LOGIN_SUCCESSFUL = "Login successful.";
+    private static final String ACCOUNT_ALREADY_IN_USAGE = "This account is already logged in elsewhere";
+    private static final String WRONG_PASSWORD_MESSAGE = "Wrong password";
+    private static final String NOT_LOGGED_IN_MESSAGE = "You need to log in to use this command";
     private static final String LOGIN_NOT_FOUND = "Login not found.";
     private static final String DEPOSIT_SUCCESSFUL = "Deposit successful.";
     private static final String BUYING_SUCCESSFUL = "Buying successful.";
@@ -32,12 +48,9 @@ public class CommandExecutor {
     private static final String REGISTER_HASHING_ERROR = "An error with the server appeared.";
     private static final String WRONG_ARGUMENTS_MESSAGE = "Wrong number of arguments for this command.";
     private static final String INVALID_AMOUNT_FORMAT = "Invalid amount format.";
-
-    private static final int DEPOSIT_ARGUMENTS = 1;
-    private static final int SELL_ARGUMENTS = 1;
-    private static final int BUY_ARGUMENTS = 2;
-    private static final int REGISTER_ARGUMENTS = 2;
-
+    private static final String FAILED_REQUEST_MESSAGE = "An error has occurred when requesting from API";
+    private static final String INVALID_MONEY_AMOUNT = "Amount of money must be positive";
+    private static final String ASSET_DOES_NOT_EXIST = "You are trying to buy an asset that does not exist";
     private static final String HELP_MESSAGE = """
             Available commands:
             login \\name\\ \\password\\
@@ -52,28 +65,67 @@ public class CommandExecutor {
             exit
             """;
 
-    private User user;
+    //Commands
+    private static final String UNRECOGNISED_COMMAND = "Unrecognised command. Use \"help\" for options.";
+    private static final String LOGIN_COMMAND = "login";
+    private static final String LOGOUT_COMMAND = "logout";
+    private static final String REGISTER_COMMAND = "register";
+    private static final String DEPOSIT_COMMAND = "deposit-money";
+    private static final String LIST_OFFERINGS_COMMAND = "list-offerings";
+    private static final String BUY_COMMAND = "buy";
+    private static final String SELL_COMMAND = "sell";
+    private static final String WALLET_SUMMARY_COMMAND = "get-wallet-summary";
+    private static final String WALLET_OVERALL_SUMMARY_COMMAND = "get-wallet-overall-summary";
+    private static final String HELP_COMMAND = "help";
 
-    public CommandExecutor() {
-        user = null;
+    //Constants
+    private static final int DEPOSIT_ARGUMENTS = 1;
+    private static final int SELL_ARGUMENTS = 1;
+    private static final int BUY_ARGUMENTS = 2;
+    private static final int REGISTER_ARGUMENTS = 2;
+    private static final String NEW_LINE = System.lineSeparator();
+
+    private Set<User> accounts = new HashSet<>();
+    private ApiCall apiCall;
+    private Database database;
+    private ServerLogger logger;
+    private static Set<User> currentlyUsedAccounts = new HashSet<>();
+
+    private static final String OUTPUT_DIRECTORY = "database";
+    private static final String DATABASE_FILE_NAME = "accounts.txt";
+    private static final String LOG_PATH = "server.log";
+    private static final Path FILE_PATH = Paths.get(OUTPUT_DIRECTORY, DATABASE_FILE_NAME);
+
+
+    public CommandExecutor(String apiKey) {
+        this.database = new Database(FILE_PATH);
+        this.logger = new ServerLogger(LOG_PATH);
+        this.accounts.addAll(database.getDatabase());
+        this.apiCall = new ApiCall(HttpClient.newBuilder().build(), apiKey);
+    }
+
+    public CommandExecutor(String apiKey, Database database, ApiCall apiCall) {
+        this.database = database;
+        this.accounts.addAll(database.getDatabase());
+        this.apiCall = apiCall;
     }
 
     public String execute(Command command, SelectionKey key) throws IOException {
         if (command == null || command.command() == null) {
-            return "Unrecognised command. Use \"help\" for options.";
+            return UNRECOGNISED_COMMAND;
         }
         return switch (command.command()) {
-            case "login" -> login(command.arguments(), key);
-            case "logout" -> logout(key);
-            case "register" -> register(command.arguments(), key);
-            case "deposit-money" -> depositMoney(command.arguments(), key);
-            case "list-offerings" -> listOfferings(key);
-            case "buy" -> buy(command.arguments(), key);
-            case "sell" -> sell(command.arguments(), key);
-            case "get-wallet-summary" -> getWalletSummary(key);
-            case "get-wallet-overall-summary" -> getWalletOverallSummary(key);
-            case "help" -> help();
-            default -> "Unrecognised command. Use \"help\" for options.";
+            case LOGIN_COMMAND -> login(command.arguments(), key);
+            case LOGOUT_COMMAND -> logout(key);
+            case REGISTER_COMMAND -> register(command.arguments(), key);
+            case DEPOSIT_COMMAND -> depositMoney(command.arguments(), key);
+            case LIST_OFFERINGS_COMMAND -> listOfferings(key);
+            case BUY_COMMAND -> buy(command.arguments(), key);
+            case SELL_COMMAND -> sell(command.arguments(), key);
+            case WALLET_SUMMARY_COMMAND -> getWalletSummary(key);
+            case WALLET_OVERALL_SUMMARY_COMMAND -> getWalletOverallSummary(key);
+            case HELP_COMMAND -> help();
+            default -> UNRECOGNISED_COMMAND;
         };
     }
 
@@ -81,11 +133,24 @@ public class CommandExecutor {
         if (input.length != SELL_ARGUMENTS) {
             return WRONG_ARGUMENTS_MESSAGE;
         }
-        if (ensureLoggedIn()) {
+        if (key.attachment() == null) {
             return LOGIN_REQUIRED;
         }
+
+        CurrencyCode currency = CurrencyCode.valueOf(input[0]);
+        Map<CurrencyCode, BigDecimal> marketChart;
+
         try {
-            CurrencyCode currency = CurrencyCode.valueOf(input[0]);
+            marketChart = apiCall.getMarketChart();
+        } catch (FailedRequestException e) {
+            return FAILED_REQUEST_MESSAGE;
+        }
+        if (!marketChart.containsKey(currency)) {
+            return ASSET_DOES_NOT_EXIST;
+        }
+
+        User user = (User) key.attachment();
+        try {
             user.getWallet().convertBalance(CurrencyCode.USD, currency);
             return SELLING_SUCCESSFUL;
         } catch (IllegalArgumentException e) {
@@ -96,15 +161,33 @@ public class CommandExecutor {
     }
 
     private String buy(String[] input, SelectionKey key) throws IOException {
+
         if (input.length != BUY_ARGUMENTS) {
             return WRONG_ARGUMENTS_MESSAGE;
         }
-        if (ensureLoggedIn()) {
+        if (key.attachment() == null) {
             return LOGIN_REQUIRED;
         }
+
+
+        CurrencyCode currency = CurrencyCode.valueOf(input[0]);
+        BigDecimal money = new BigDecimal(input[1]);
+        Map<CurrencyCode, BigDecimal> marketChart;
+
+        if ((money.compareTo(BigDecimal.ZERO) <= 0)) {
+            return INVALID_MONEY_AMOUNT;
+        }
         try {
-            CurrencyCode currency = CurrencyCode.valueOf(input[0]);
-            BigDecimal money = new BigDecimal(input[1]);
+            marketChart = apiCall.getMarketChart();
+        } catch (FailedRequestException e) {
+            return FAILED_REQUEST_MESSAGE;
+        }
+        if (!marketChart.containsKey(currency)) {
+            return ASSET_DOES_NOT_EXIST;
+        }
+
+        User user = (User) key.attachment();
+        try {
             user.getWallet().convertBalance(currency, CurrencyCode.USD, money);
             return BUYING_SUCCESSFUL;
         } catch (IllegalArgumentException e) {
@@ -125,12 +208,14 @@ public class CommandExecutor {
         if (input.length != DEPOSIT_ARGUMENTS) {
             return WRONG_ARGUMENTS_MESSAGE;
         }
-        if (ensureLoggedIn()) {
+        if (key.attachment() == null) {
             return LOGIN_REQUIRED;
         }
+
         try {
             BigDecimal money = new BigDecimal(input[0]);
-            user.getWallet().deposit(money);
+            User current = (User) key.attachment();
+            current.getWallet().deposit(money);
             return DEPOSIT_SUCCESSFUL;
         } catch (NumberFormatException e) {
             return INVALID_AMOUNT_FORMAT;
@@ -138,28 +223,51 @@ public class CommandExecutor {
     }
 
     private String getWalletSummary(SelectionKey key) {
-        if (ensureLoggedIn()) {
+        if (key.attachment() == null) {
             return LOGIN_REQUIRED;
         }
+        User user = (User) key.attachment();
         return user.getWallet().currentCurrencyBalanceString();
     }
 
     private String getWalletOverallSummary(SelectionKey key) {
-        if (ensureLoggedIn()) {
+        if (key.attachment() == null) {
             return LOGIN_REQUIRED;
         }
+        User user = (User) key.attachment();
         return user.getWallet().currentBalance().subtract(user.getWallet().getTotal()).toString();
     }
 
-    private String listOfferings(SelectionKey key) throws IOException {
-        if (ensureLoggedIn()) {
+    private String listOfferings(SelectionKey key) {
+        if (key.attachment() == null) {
             return LOGIN_REQUIRED;
         }
+
+        StringBuilder result = new StringBuilder();
         try {
-            return HttpCaller.getPricesRateSync(CurrencyCode.USD);
-        } catch (URISyntaxException | InterruptedException e) {
-            return IO_SERVER_EXCEPTION;
+            Map<CurrencyCode, BigDecimal> map = apiCall.getMarketChart();
+            for (var entry : map.entrySet()) {
+                result.append(String.format("%-6s %10.4f", entry.getKey(), entry.getValue())).append(NEW_LINE);
+            }
+
+        } catch (FailedRequestException e) {
+            logger.logError(FAILED_REQUEST_MESSAGE, e.getStackTrace());
+            return FAILED_REQUEST_MESSAGE;
         }
+
+        return result.toString();
+    }
+
+    private User findAccount(String username) {
+        if (username == null) {
+            return null;
+        }
+        for (User account : database.getDatabase()) {
+            if (username.equals(account.getName())) {
+                return account;
+            }
+        }
+        return null;
     }
 
     private String login(String[] input, SelectionKey key) {
@@ -169,25 +277,39 @@ public class CommandExecutor {
         if (input.length != REGISTER_ARGUMENTS) {
             return WRONG_ARGUMENTS_MESSAGE;
         }
+
+        String username = input[0];
+        String password = input[1];
+        User current = findAccount(username);
+
+        if (!database.getDatabase().contains(current)) {
+            return LOGIN_NOT_FOUND;
+        }
+        if (currentlyUsedAccounts.contains(current)) {
+            return ACCOUNT_ALREADY_IN_USAGE;
+        }
         try {
-            List<User> users = ObjectSerializable.readUsersFromFile();
-            for (User user : users) {
-                if (user.login(input[0], input[1])) {
-                    this.user = user;
-                    return LOGIN_SUCCESSFUL;
-                }
+            if (!current.login(username, password)) {
+                return WRONG_PASSWORD_MESSAGE;
             }
         } catch (NoSuchAlgorithmException e) {
             return REGISTER_HASHING_ERROR;
         }
-        return LOGIN_NOT_FOUND;
+
+        key.attach(current);
+        currentlyUsedAccounts.add(current);
+
+        return LOGIN_SUCCESSFUL;
     }
 
     private String logout(SelectionKey key) {
-        if (user != null) {
-            ObjectSerializable.updateUser(user);
+        if (key.attachment() == null) {
+            return NOT_LOGGED_IN_MESSAGE;
         }
-        user = null;
+
+        currentlyUsedAccounts.remove((User) key.attachment());
+        key.attach(null);
+
         return LOGOUT_SUCCESSFUL;
     }
 
@@ -198,14 +320,25 @@ public class CommandExecutor {
         if (input.length != REGISTER_ARGUMENTS) {
             return WRONG_ARGUMENTS_MESSAGE;
         }
-        try {
-            user = new User(input[0], input[1]);
-            ObjectSerializable.writeUserToFile(user);
-        } catch (NoSuchAlgorithmException e) {
-            return REGISTER_HASHING_ERROR;
-        } catch (UserAlreadyExistsException e) {
+
+        String username = input[0];
+        String password = input[1];
+        User current = findAccount(username);
+        if (database.getDatabase().contains(current)) {
             return USER_ALREADY_EXISTS;
         }
+        User newAccount;
+        try {
+            newAccount = new User(username, password);
+        } catch (NoSuchAlgorithmException e) {
+            return REGISTER_HASHING_ERROR;
+        }
+        if (database.getDatabase().isEmpty()) {
+            newAccount.changeAdminStatus();
+        }
+        accounts.add(newAccount);
+        database.updateData(accounts);
+
         return REGISTER_SUCCESSFUL;
     }
 

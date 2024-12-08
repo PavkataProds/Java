@@ -21,7 +21,7 @@ public class WalletServer {
     private static final String SERVER_HOST = "localhost";
     private static final int BUFFER_SIZE = 2048;
 
-    private static final String LOG_PATH = "server.log";
+    public static final String LOG_PATH = "server.log";
     private static final String SHUTTING_DOWN_MESSAGE =
             "Server was shut down";
     private static final String DISCONNECT = "disconnect";
