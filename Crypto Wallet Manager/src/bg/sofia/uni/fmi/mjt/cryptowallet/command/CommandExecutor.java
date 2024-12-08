@@ -10,12 +10,14 @@ import bg.sofia.uni.fmi.mjt.cryptowallet.provider.ObjectSerializable;
 import java.io.IOException;
 import java.math.BigDecimal;
 import java.net.URISyntaxException;
+import java.nio.channels.SelectionKey;
 import java.security.NoSuchAlgorithmException;
 import java.util.List;
 
 public class CommandExecutor {
 
     private static final String LOGIN_REQUIRED = "Login required. Use \"login \\name\\ \\password\\\" or \"register \\name\\ \\password\\\".";
+    private static final String ALREADY_LOGGED_IN = "You are already log in. Use \"logout\" first";
     private static final String IO_SERVER_EXCEPTION = "An error with the server appeared.";
     private static final String REGISTER_SUCCESSFUL = "Register successful.";
     private static final String LOGIN_SUCCESSFUL = "Login successful.";
@@ -56,34 +58,26 @@ public class CommandExecutor {
         user = null;
     }
 
-    public String execute(Command command) throws IOException {
+    public String execute(Command command, SelectionKey key) throws IOException {
         if (command == null || command.command() == null) {
             return "Unrecognised command. Use \"help\" for options.";
         }
         return switch (command.command()) {
-            case "login" -> login(command.arguments());
-            case "logout" -> logout();
-            case "register" -> register(command.arguments());
-            case "deposit-money" -> depositMoney(command.arguments());
-            case "list-offerings" -> listOfferings();
-            case "buy" -> buy(command.arguments());
-            case "sell" -> sell(command.arguments());
-            case "get-wallet-summary" -> getWalletSummary();
-            case "get-wallet-overall-summary" -> getWalletOverallSummary();
+            case "login" -> login(command.arguments(), key);
+            case "logout" -> logout(key);
+            case "register" -> register(command.arguments(), key);
+            case "deposit-money" -> depositMoney(command.arguments(), key);
+            case "list-offerings" -> listOfferings(key);
+            case "buy" -> buy(command.arguments(), key);
+            case "sell" -> sell(command.arguments(), key);
+            case "get-wallet-summary" -> getWalletSummary(key);
+            case "get-wallet-overall-summary" -> getWalletOverallSummary(key);
             case "help" -> help();
             default -> "Unrecognised command. Use \"help\" for options.";
         };
     }
 
-    private boolean ensureLoggedIn() {
-        if (user == null) {
-            System.out.println(LOGIN_REQUIRED);
-            return true;
-        }
-        return false;
-    }
-
-    private String sell(String[] input) throws IOException {
+    private String sell(String[] input, SelectionKey key) throws IOException {
         if (input.length != SELL_ARGUMENTS) {
             return WRONG_ARGUMENTS_MESSAGE;
         }
@@ -101,7 +95,7 @@ public class CommandExecutor {
         }
     }
 
-    private String buy(String[] input) throws IOException {
+    private String buy(String[] input, SelectionKey key) throws IOException {
         if (input.length != BUY_ARGUMENTS) {
             return WRONG_ARGUMENTS_MESSAGE;
         }
@@ -127,7 +121,7 @@ public class CommandExecutor {
     }
 
 
-    private String depositMoney(String[] input) {
+    private String depositMoney(String[] input, SelectionKey key) {
         if (input.length != DEPOSIT_ARGUMENTS) {
             return WRONG_ARGUMENTS_MESSAGE;
         }
@@ -143,21 +137,21 @@ public class CommandExecutor {
         }
     }
 
-    private String getWalletSummary() {
+    private String getWalletSummary(SelectionKey key) {
         if (ensureLoggedIn()) {
             return LOGIN_REQUIRED;
         }
         return user.getWallet().currentCurrencyBalanceString();
     }
 
-    private String getWalletOverallSummary() {
+    private String getWalletOverallSummary(SelectionKey key) {
         if (ensureLoggedIn()) {
             return LOGIN_REQUIRED;
         }
         return user.getWallet().currentBalance().subtract(user.getWallet().getTotal()).toString();
     }
 
-    private String listOfferings() throws IOException {
+    private String listOfferings(SelectionKey key) throws IOException {
         if (ensureLoggedIn()) {
             return LOGIN_REQUIRED;
         }
@@ -168,7 +162,10 @@ public class CommandExecutor {
         }
     }
 
-    private String login(String[] input) {
+    private String login(String[] input, SelectionKey key) {
+        if (key.attachment() != null) {
+            return ALREADY_LOGGED_IN;
+        }
         if (input.length != REGISTER_ARGUMENTS) {
             return WRONG_ARGUMENTS_MESSAGE;
         }
@@ -186,7 +183,7 @@ public class CommandExecutor {
         return LOGIN_NOT_FOUND;
     }
 
-    private String logout() {
+    private String logout(SelectionKey key) {
         if (user != null) {
             ObjectSerializable.updateUser(user);
         }
@@ -194,7 +191,10 @@ public class CommandExecutor {
         return LOGOUT_SUCCESSFUL;
     }
 
-    private String register(String[] input) {
+    private String register(String[] input, SelectionKey key) {
+        if (key.attachment() != null) {
+            return ALREADY_LOGGED_IN;
+        }
         if (input.length != REGISTER_ARGUMENTS) {
             return WRONG_ARGUMENTS_MESSAGE;
         }

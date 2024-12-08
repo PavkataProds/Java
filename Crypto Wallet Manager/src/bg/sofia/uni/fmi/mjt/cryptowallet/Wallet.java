@@ -15,11 +15,20 @@ import static bg.sofia.uni.fmi.mjt.cryptowallet.provider.HttpCaller.getPricesRat
 public class Wallet implements WalletAPI, Serializable {
     private final Map<CurrencyCode, BigDecimal> currencyBalance;
     private BigDecimal total;
+    private final String DELIMITER = "/";
+    private static final int BALANCE_INDEX = 4;
+    private static final int FIRST_CRYPTO_INDEX = 5;
+    private static final int WALLET_FROM_CSV_STEP = 2;
 
     public Wallet() {
         currencyBalance = new HashMap<>();
         currencyBalance.put(CurrencyCode.USD, BigDecimal.valueOf(0));
         total = BigDecimal.valueOf(0);
+    }
+
+    public Wallet(BigDecimal newTotal, Map<CurrencyCode, BigDecimal> loadCurrencyBalance) {
+        total = newTotal;
+        currencyBalance = loadCurrencyBalance;
     }
 
     public BigDecimal getTotal() {
@@ -82,5 +91,28 @@ public class Wallet implements WalletAPI, Serializable {
         }
         currencyBalance.put(CurrencyCode.USD, currencyBalance.get(CurrencyCode.USD).add(amount));
         total = total.add(amount);
+    }
+
+    public static Wallet fromCSV(String[] tokens) {
+        Map<CurrencyCode, BigDecimal> loadCurrencyBalance = new HashMap<>();
+
+        for (int i = FIRST_CRYPTO_INDEX; i < tokens.length; i += WALLET_FROM_CSV_STEP) {
+            loadCurrencyBalance.put(CurrencyCode.valueOf(tokens[i]),
+                    BigDecimal.valueOf(Long.parseLong(tokens[i + 1])));
+        }
+        BigDecimal newTotal = BigDecimal.valueOf(Long.parseLong((tokens[BALANCE_INDEX])));
+
+        return new Wallet(newTotal, loadCurrencyBalance);
+    }
+
+    public String toCSV() {
+        StringBuilder result = new StringBuilder();
+
+        result.append(DELIMITER).append(total);
+        for (var entry : currencyBalance.entrySet()) {
+            result.append(DELIMITER).append(entry.getKey()).append(DELIMITER).append(entry.getValue());
+        }
+
+        return result.toString();
     }
 }

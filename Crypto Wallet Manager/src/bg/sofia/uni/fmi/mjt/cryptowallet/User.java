@@ -15,6 +15,8 @@ public class User implements Serializable {
     private final byte[] salt;
     private final Wallet wallet;
     private final int byteSize = 16;
+    private final boolean isAdmin;
+    private static final String DELIMITER = "/";
 
     public User(String name, String password) throws NoSuchAlgorithmException {
         if (name == null || password == null
@@ -33,6 +35,16 @@ public class User implements Serializable {
         this.password = md.digest(password.getBytes(StandardCharsets.UTF_8));
 
         this.wallet = new Wallet();
+        this.isAdmin = false;
+    }
+
+    //password accepted as byte array means it's already hashed!!!
+    public User(String name, byte[] password, byte[] salt, Wallet wallet, boolean isAdmin) throws NoSuchAlgorithmException {
+        this.name = name;
+        this.password = password;
+        this.salt = salt;
+        this.wallet = wallet;
+        this.isAdmin = isAdmin;
     }
 
     public String getName() {
@@ -50,5 +62,26 @@ public class User implements Serializable {
         byte[] hashedPassword = md.digest(password.getBytes(StandardCharsets.UTF_8));
 
         return name.equals(this.name) && Arrays.equals(hashedPassword, this.password);
+    }
+
+    public static User fromCSV(String line) throws NoSuchAlgorithmException {
+        String[] tokens = line.split(DELIMITER);
+
+        boolean isAdmin = (Integer.parseInt(tokens[0])) != 0;
+
+        return new User(tokens[1], tokens[2].getBytes(), tokens[3].getBytes(), Wallet.fromCSV(tokens), isAdmin);
+    }
+
+    public String toCSV() {
+        StringBuilder result = new StringBuilder();
+
+        int adminValue = isAdmin ? 1 : 0;
+
+        result.append(adminValue).append(DELIMITER)
+                .append(name).append(DELIMITER)
+                .append(Arrays.toString(password))
+                .append(Arrays.toString(salt));
+
+        return result.append(wallet.toCSV()).toString();
     }
 }
