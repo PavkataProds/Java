@@ -5,25 +5,20 @@ import bg.sofia.uni.fmi.mjt.cryptowallet.User;
 import bg.sofia.uni.fmi.mjt.cryptowallet.database.Database;
 import bg.sofia.uni.fmi.mjt.cryptowallet.exception.FailedRequestException;
 import bg.sofia.uni.fmi.mjt.cryptowallet.exception.InsufficientBalanceException;
-import bg.sofia.uni.fmi.mjt.cryptowallet.exception.UserAlreadyExistsException;
-import bg.sofia.uni.fmi.mjt.cryptowallet.provider.HttpCaller;
-//import bg.sofia.uni.fmi.mjt.cryptowallet.provider.ObjectSerializable;
 import bg.sofia.uni.fmi.mjt.cryptowallet.response.ApiCall;
 import bg.sofia.uni.fmi.mjt.cryptowallet.server.ServerLogger;
 
 import java.io.IOException;
 import java.math.BigDecimal;
 import java.net.URISyntaxException;
+import java.net.http.HttpClient;
 import java.nio.channels.SelectionKey;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.security.NoSuchAlgorithmException;
 import java.util.HashSet;
-import java.util.List;
 import java.util.Map;
 import java.util.Set;
-
-import java.net.http.HttpClient;
 
 public class CommandExecutor {
 
@@ -137,7 +132,7 @@ public class CommandExecutor {
             return LOGIN_REQUIRED;
         }
 
-        CurrencyCode currency = CurrencyCode.valueOf(input[0]);
+        CurrencyCode currency = CurrencyCode.valueOf(input[0].toUpperCase());
         Map<CurrencyCode, BigDecimal> marketChart;
 
         try {
@@ -169,8 +164,7 @@ public class CommandExecutor {
             return LOGIN_REQUIRED;
         }
 
-
-        CurrencyCode currency = CurrencyCode.valueOf(input[0]);
+        CurrencyCode currency = CurrencyCode.valueOf(input[0].toUpperCase());
         BigDecimal money = new BigDecimal(input[1]);
         Map<CurrencyCode, BigDecimal> marketChart;
 

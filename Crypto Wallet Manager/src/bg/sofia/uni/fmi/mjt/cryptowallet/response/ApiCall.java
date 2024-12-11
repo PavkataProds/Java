@@ -11,7 +11,6 @@ import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
-import java.util.BitSet;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.Executors;
@@ -73,20 +72,28 @@ public class ApiCall {
 
     private void fetchMarketChart(JsonArray jsonArray) {
         int ctr = 0;
-        System.out.println(jsonArray.size());
+        //System.out.println("JSON Array Size: " + jsonArray.size());
         while (ctr < jsonArray.size() && ctr < MAX_RESULTS) {
-            JsonObject current = jsonArray.get(ctr++).getAsJsonObject();
+            JsonObject current = (JsonObject) jsonArray.get(ctr++);
+            //System.out.println("Processing item: " + current);
 
             if (current.get("type_is_crypto").getAsInt() != 1 || !current.has("price_usd")
                     || Double.compare(current.get("price_usd").getAsDouble(), MINIMUM_PRICE_FOR_ONE) < 0
                     || Double.compare(current.get("price_usd").getAsDouble(), MAXIMUM_PRICE_FOR_ONE) > 0) {
-                jsonArray.remove(ctr);
+                //System.out.println("Skipping item: " + current);
                 continue;
             }
-            marketChart.put(CurrencyCode.valueOf(current.get("asset_id").getAsString()),
-                    current.get("price_usd").getAsBigDecimal());
+
+            try {
+                CurrencyCode currency = CurrencyCode.valueOf(current.get("asset_id").getAsString());
+                BigDecimal price = current.get("price_usd").getAsBigDecimal();
+                marketChart.put(currency, price);
+            } catch (IllegalArgumentException e) {
+                //System.out.println("Invalid currency code: " + current.get("asset_id").getAsString());
+            }
         }
     }
+
 
     private void handleResponseCode(int responseCode) throws FailedRequestException {
         if (responseCode >= BAD_REQUEST_CODE && responseCode < INTERNET_SERVER_ERROR_CODE) {
@@ -103,4 +110,28 @@ public class ApiCall {
     public void shutdownScheduler() {
         scheduler.shutdownNow();
     }
+
+//    public static void main(String[] args) {
+//        String apiKey = "E92452D2-DF77-4022-8A8A-E2A4CFB06D51";
+//        HttpClient httpClient = HttpClient.newHttpClient();
+//
+//        ApiCall apiCall = new ApiCall(httpClient, apiKey);
+//
+//        try {
+//            Map<CurrencyCode, BigDecimal> marketChart = apiCall.getMarketChart();
+//
+//            System.out.println("Market Chart:");
+//            for (Map.Entry<CurrencyCode, BigDecimal> entry : marketChart.entrySet()) {
+//                System.out.printf("Currency: %s, Price: %s USD%n", entry.getKey(), entry.getValue());
+//            }
+//
+//        } catch (FailedRequestException e) {
+//            System.err.println("Failed to fetch market chart: " + e.getMessage());
+//        } catch (RuntimeException e) {
+//            System.err.println("Unexpected error: " + e.getMessage());
+//        } finally {
+//            apiCall.shutdownScheduler();
+//        }
+//    }
+
 }
