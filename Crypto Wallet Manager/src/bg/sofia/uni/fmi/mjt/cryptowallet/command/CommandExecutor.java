@@ -13,6 +13,7 @@ import java.math.BigDecimal;
 import java.net.URISyntaxException;
 import java.net.http.HttpClient;
 import java.nio.channels.SelectionKey;
+import java.nio.channels.SocketChannel;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.security.NoSuchAlgorithmException;
@@ -46,6 +47,8 @@ public class CommandExecutor {
     private static final String FAILED_REQUEST_MESSAGE = "An error has occurred when requesting from API";
     private static final String INVALID_MONEY_AMOUNT = "Amount of money must be positive";
     private static final String ASSET_DOES_NOT_EXIST = "You are trying to buy an asset that does not exist";
+    private static final String DISCONNECTING_MESSAGE = "Disconnected successfully";
+    private static final String ERROR_DISCONNECTING_MESSAGE = "Error while disconnecting. Please try again.";
     private static final String HELP_MESSAGE = """
             Available commands:
             login \\name\\ \\password\\
@@ -79,12 +82,13 @@ public class CommandExecutor {
     private static final int BUY_ARGUMENTS = 2;
     private static final int REGISTER_ARGUMENTS = 2;
     private static final String NEW_LINE = System.lineSeparator();
+    private static final String EXIT_COMMAND = "exit";
 
-    private Set<User> accounts = new HashSet<>();
+    private final Set<User> accounts = new HashSet<>();
     private ApiCall apiCall;
     private Database database;
     private ServerLogger logger;
-    private static Set<User> currentlyUsedAccounts = new HashSet<>();
+    private static final Set<User> currentlyUsedAccounts = new HashSet<>();
 
     private static final String OUTPUT_DIRECTORY = "database";
     private static final String DATABASE_FILE_NAME = "accounts.txt";
@@ -120,6 +124,7 @@ public class CommandExecutor {
             case WALLET_SUMMARY_COMMAND -> getWalletSummary(key);
             case WALLET_OVERALL_SUMMARY_COMMAND -> getWalletOverallSummary(key);
             case HELP_COMMAND -> help();
+            case EXIT_COMMAND -> exit(key);
             default -> UNRECOGNISED_COMMAND;
         };
     }
@@ -338,5 +343,19 @@ public class CommandExecutor {
 
     private String help() {
         return HELP_MESSAGE;
+    }
+
+    private String exit(SelectionKey key) {
+        try {
+            if (key.attachment() != null) {
+                logout(key);
+            }
+            SocketChannel clientChannel = (SocketChannel) key.channel();
+            clientChannel.close();
+            key.cancel();
+            return DISCONNECTING_MESSAGE;
+        } catch (IOException e) {
+            return ERROR_DISCONNECTING_MESSAGE;
+        }
     }
 }

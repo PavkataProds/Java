@@ -16,9 +16,14 @@ import java.nio.channels.ServerSocketChannel;
 import java.nio.channels.SocketChannel;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.Iterator;
 
 public class Server {
+    private static final String OUTPUT_DIRECTORY = "database";
+    private static final String DATABASE_FILE_NAME = "accounts.txt";
+    private static final String LOG_PATH = "server.log";
+    private static final Path FILE_PATH = Paths.get(OUTPUT_DIRECTORY, DATABASE_FILE_NAME);
     private static final int BUFFER_SIZE = 2048;
     private static final String HOST = "localhost";
     private static final int PORT = 7777;
@@ -41,19 +46,29 @@ public class Server {
             System.out.println("Server started on port " + PORT);
 
             while (true) {
-                if (selector.select() == 0) {
-                    continue;
-                }
-
-                Iterator<SelectionKey> keyIterator = selector.selectedKeys().iterator();
-                while (keyIterator.hasNext()) {
-                    SelectionKey key = keyIterator.next();
-                    if (key.isAcceptable()) {
-                        accept(serverSocketChannel);
-                    } else if (key.isReadable()) {
-                        processCommand(key);
+                try {
+                    if (selector.select() == 0) {
+                        continue; // No channels are ready
                     }
-                    keyIterator.remove();
+
+                    Iterator<SelectionKey> keyIterator = selector.selectedKeys().iterator();
+                    while (keyIterator.hasNext()) {
+                        SelectionKey key = keyIterator.next();
+                        keyIterator.remove(); // Remove the key to prevent re-processing
+
+                        try {
+                            if (key.isAcceptable()) {
+                                accept(serverSocketChannel);
+                            } else if (key.isReadable()) {
+                                processCommand(key);
+                            }
+                        } catch (IOException e) {
+                            System.err.println("Error handling client: " + e.getMessage());
+                            closeClient(key);
+                        }
+                    }
+                } catch (IOException e) {
+                    System.err.println("Error in selector loop: " + e.getMessage());
                 }
             }
         }
@@ -72,7 +87,8 @@ public class Server {
 
         int readBytes = clientChannel.read(buffer);
         if (readBytes <= 0) {
-            clientChannel.close();
+            System.out.println("Client disconnected: " + clientChannel.getRemoteAddress());
+            closeClient(key);
             return;
         }
 
@@ -80,15 +96,16 @@ public class Server {
         byte[] bytes = new byte[buffer.remaining()];
         buffer.get(bytes);
         String clientInput = new String(bytes, StandardCharsets.UTF_8).trim();
+        System.out.println("Received command: " + clientInput);
 
         Command command = CommandCreator.newCommand(clientInput);
         String response;
         try {
             response = commandExecutor.execute(command, key);
         } catch (IllegalArgumentException e) {
-            response = "Error: " + e.getMessage(); // Handle bad input
+            response = "Error: " + e.getMessage();
         } catch (RuntimeException e) {
-            response = "Internal server error. Please try again."; // Handle unexpected errors
+            response = "Internal server error. Please try again.";
         }
 
         sendResponse(clientChannel, response);
@@ -101,10 +118,22 @@ public class Server {
         clientChannel.write(buffer);
     }
 
+    private void closeClient(SelectionKey key) {
+        try {
+            if (key.channel() instanceof SocketChannel) {
+                key.channel().close(); // Close the channel
+            }
+        } catch (IOException e) {
+            System.err.println("Error closing client channel: " + e.getMessage());
+        } finally {
+            key.cancel(); // Remove the key from the selector
+        }
+    }
+
     public static void main(String[] args) {
         try {
             String apiKey = "E92452D2-DF77-4022-8A8A-E2A4CFB06D51";
-            Database database = new Database(Path.of("accounts.txt"));
+            Database database = new Database(FILE_PATH);
             ApiCall apiCall = new ApiCall(HttpClient.newHttpClient(), apiKey);
 
             CommandExecutor commandExecutor = new CommandExecutor(apiKey, database, apiCall);

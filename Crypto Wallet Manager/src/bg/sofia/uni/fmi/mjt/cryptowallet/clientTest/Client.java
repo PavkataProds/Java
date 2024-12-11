@@ -16,6 +16,9 @@ public class Client {
     private static final String SHUTTING_DOWN_MESSAGE =
             "Server was shut down";
     private static ByteBuffer buffer = ByteBuffer.allocate(BUFFER_SIZE);
+    private static final String EXIT_COMMAND = "exit";
+    private static final String EXIT_MESSAGE = "Exiting... Thanks for using the app!";
+
 
     public static void main(String[] args) {
         try (SocketChannel sc = SocketChannel.open();
@@ -25,6 +28,12 @@ public class Client {
             System.out.println("Connected to server");
             while (true) {
                 String message = scanner.nextLine();
+
+                if (message.equalsIgnoreCase(EXIT_COMMAND)) {
+                    sendMessageToServer(sc, EXIT_COMMAND);
+                    System.out.println(EXIT_MESSAGE);
+                    break;
+                }
 
                 sendMessageToServer(sc, message);
 

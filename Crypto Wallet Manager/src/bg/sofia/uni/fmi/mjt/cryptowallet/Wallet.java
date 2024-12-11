@@ -97,8 +97,7 @@ public class Wallet implements WalletAPI, Serializable {
         Map<CurrencyCode, BigDecimal> loadCurrencyBalance = new HashMap<>();
 
         for (int i = FIRST_CRYPTO_INDEX; i < tokens.length; i += WALLET_FROM_CSV_STEP) {
-            loadCurrencyBalance.put(CurrencyCode.valueOf(tokens[i]),
-                    BigDecimal.valueOf(Long.parseLong(tokens[i + 1])));
+            loadCurrencyBalance.put(CurrencyCode.valueOf(tokens[i]), new BigDecimal(tokens[i + 1]));
         }
         BigDecimal newTotal = BigDecimal.valueOf(Long.parseLong((tokens[BALANCE_INDEX])));
 

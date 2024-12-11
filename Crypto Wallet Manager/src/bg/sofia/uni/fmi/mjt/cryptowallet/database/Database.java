@@ -4,7 +4,6 @@ import bg.sofia.uni.fmi.mjt.cryptowallet.User;
 
 import java.io.IOException;
 import java.io.UncheckedIOException;
-import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.security.NoSuchAlgorithmException;

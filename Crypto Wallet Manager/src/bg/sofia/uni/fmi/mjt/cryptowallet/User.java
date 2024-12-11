@@ -8,6 +8,7 @@ import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.security.SecureRandom;
 import java.util.Arrays;
+import java.util.Base64;
 
 public class User implements Serializable {
     private final String name;
@@ -73,7 +74,8 @@ public class User implements Serializable {
 
         boolean isAdmin = (Integer.parseInt(tokens[0])) != 0;
 
-        return new User(tokens[1], tokens[2].getBytes(), tokens[3].getBytes(), Wallet.fromCSV(tokens), isAdmin);
+        return new User(tokens[1], Base64.getUrlDecoder().decode(tokens[2]),
+                Base64.getUrlDecoder().decode(tokens[3]), Wallet.fromCSV(tokens), isAdmin);
     }
 
     public String toCSV() {
@@ -82,8 +84,8 @@ public class User implements Serializable {
 
         return adminValue + DELIMITER +
                 name + DELIMITER +
-                Arrays.toString(password) +
-                Arrays.toString(salt) +
+                Base64.getUrlEncoder().encodeToString(password) + DELIMITER +
+                Base64.getUrlEncoder().encodeToString(salt) +
                 wallet.toCSV();
     }
 }
