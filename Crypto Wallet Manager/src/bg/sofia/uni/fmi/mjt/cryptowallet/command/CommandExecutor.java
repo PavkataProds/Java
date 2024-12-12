@@ -46,7 +46,8 @@ public class CommandExecutor {
     private static final String INVALID_AMOUNT_FORMAT = "Invalid amount format.";
     private static final String FAILED_REQUEST_MESSAGE = "An error has occurred when requesting from API";
     private static final String INVALID_MONEY_AMOUNT = "Amount of money must be positive";
-    private static final String ASSET_DOES_NOT_EXIST = "You are trying to buy an asset that does not exist";
+    private static final String ASSET_DOES_NOT_EXIST_BUY = "You are trying to buy an asset that does not exist";
+    private static final String ASSET_DOES_NOT_EXIST_SELL = "You are trying to sell an asset that does not exist";
     private static final String DISCONNECTING_MESSAGE = "Disconnected successfully";
     private static final String ERROR_DISCONNECTING_MESSAGE = "Error while disconnecting. Please try again.";
     private static final String HELP_MESSAGE = """
@@ -60,8 +61,7 @@ public class CommandExecutor {
             get-wallet-summary
             get-wallet-overall-summary
             logout
-            exit
-            """;
+            exit""";
 
     //Commands
     private static final String UNRECOGNISED_COMMAND = "Unrecognised command. Use \"help\" for options.";
@@ -85,8 +85,8 @@ public class CommandExecutor {
     private static final String EXIT_COMMAND = "exit";
 
     private final Set<User> accounts = new HashSet<>();
-    private ApiCall apiCall;
-    private Database database;
+    private final ApiCall apiCall;
+    private final Database database;
     private ServerLogger logger;
     private static final Set<User> currentlyUsedAccounts = new HashSet<>();
 
@@ -103,7 +103,7 @@ public class CommandExecutor {
         this.apiCall = new ApiCall(HttpClient.newBuilder().build(), apiKey);
     }
 
-    public CommandExecutor(String apiKey, Database database, ApiCall apiCall) {
+    public CommandExecutor(Database database, ApiCall apiCall) {
         this.database = database;
         this.accounts.addAll(database.getDatabase());
         this.apiCall = apiCall;
@@ -137,16 +137,19 @@ public class CommandExecutor {
             return LOGIN_REQUIRED;
         }
 
-        CurrencyCode currency = CurrencyCode.valueOf(input[0].toUpperCase());
+        CurrencyCode currency;
         Map<CurrencyCode, BigDecimal> marketChart;
 
         try {
+            currency = CurrencyCode.valueOf(input[0].toUpperCase());
             marketChart = apiCall.getMarketChart();
         } catch (FailedRequestException e) {
             return FAILED_REQUEST_MESSAGE;
+        } catch (IllegalArgumentException e) {
+            return ASSET_DOES_NOT_EXIST_SELL;
         }
         if (!marketChart.containsKey(currency)) {
-            return ASSET_DOES_NOT_EXIST;
+            return ASSET_DOES_NOT_EXIST_SELL;
         }
 
         User user = (User) key.attachment();
@@ -169,20 +172,26 @@ public class CommandExecutor {
             return LOGIN_REQUIRED;
         }
 
-        CurrencyCode currency = CurrencyCode.valueOf(input[0].toUpperCase());
-        BigDecimal money = new BigDecimal(input[1]);
+        CurrencyCode currency;
+        BigDecimal money;
         Map<CurrencyCode, BigDecimal> marketChart;
 
-        if ((money.compareTo(BigDecimal.ZERO) <= 0)) {
-            return INVALID_MONEY_AMOUNT;
-        }
         try {
+            money = new BigDecimal(input[1]);
+            currency = CurrencyCode.valueOf(input[0].toUpperCase());
             marketChart = apiCall.getMarketChart();
         } catch (FailedRequestException e) {
             return FAILED_REQUEST_MESSAGE;
+        } catch (NumberFormatException e) {
+            return INVALID_AMOUNT_FORMAT;
+        } catch (IllegalArgumentException e) {
+            return ASSET_DOES_NOT_EXIST_BUY;
         }
         if (!marketChart.containsKey(currency)) {
-            return ASSET_DOES_NOT_EXIST;
+            return ASSET_DOES_NOT_EXIST_BUY;
+        }
+        if ((money.compareTo(BigDecimal.ZERO) <= 0)) {
+            return INVALID_MONEY_AMOUNT;
         }
 
         User user = (User) key.attachment();
@@ -192,9 +201,9 @@ public class CommandExecutor {
         } catch (IllegalArgumentException e) {
             // Differentiate based on the cause of the exception.
             if (e instanceof NumberFormatException) {
-                return INVALID_AMOUNT_FORMAT;  // Invalid number format.
+                return INVALID_AMOUNT_FORMAT;
             }
-            return WRONG_FORMAT;  // Invalid currency code or other issues.
+            return WRONG_FORMAT;
         } catch (InsufficientBalanceException e) {
             return INSUFFICIENT_BALANCE;
         } catch (URISyntaxException | InterruptedException e) {

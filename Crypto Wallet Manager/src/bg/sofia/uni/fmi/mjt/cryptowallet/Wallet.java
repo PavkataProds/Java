@@ -10,7 +10,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 
-import static bg.sofia.uni.fmi.mjt.cryptowallet.provider.HttpCaller.getPricesRateSync;
+import static bg.sofia.uni.fmi.mjt.cryptowallet.response.ApiCallTransaction.getPricesRateSync;
 
 public class Wallet implements WalletAPI, Serializable {
     private final Map<CurrencyCode, BigDecimal> currencyBalance;
@@ -42,13 +42,14 @@ public class Wallet implements WalletAPI, Serializable {
     public String currentCurrencyBalanceString() {
         StringBuilder result = new StringBuilder();
         for (CurrencyCode currencyCode : currencyBalance.keySet()) {
-            if (BigDecimal.valueOf(0).compareTo(currencyBalance.get(currencyCode)) < 0) {
+            if (BigDecimal.valueOf(0).compareTo(currencyBalance.get(currencyCode)) <= 0) {
                 result.append(currencyCode)
                         .append(": ")
                         .append(currencyBalance.get(currencyCode))
                         .append("\n");
             }
         }
+        result.deleteCharAt(result.length() - 1);
         return result.toString();
     }
 

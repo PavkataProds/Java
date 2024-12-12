@@ -21,9 +21,9 @@ public class ApiCall {
     private final HttpClient httpClient;
     private final String apiKey;
     private static final int MINUTES_OF_RESPONSE_VALIDITY = 30;
-    private static final int MAX_RESULTS = 50;
+    private static final int MAX_RESULTS = 2000;
     private static final double MINIMUM_PRICE_FOR_ONE = 0.0001;
-    private static final int MAXIMUM_PRICE_FOR_ONE = 100_000;
+    private static final int MAXIMUM_PRICE_FOR_ONE = 250_000;
     private static final int BAD_REQUEST_CODE = 400;
     private static final int INTERNET_SERVER_ERROR_CODE = 500;
     private Map<CurrencyCode, BigDecimal> marketChart;
@@ -71,10 +71,10 @@ public class ApiCall {
     }
 
     private void fetchMarketChart(JsonArray jsonArray) {
-        int ctr = 0;
+        int currencyCounter = 0;
         //System.out.println("JSON Array Size: " + jsonArray.size());
-        while (ctr < jsonArray.size() && ctr < MAX_RESULTS) {
-            JsonObject current = (JsonObject) jsonArray.get(ctr++);
+        while (currencyCounter < jsonArray.size() && currencyCounter < MAX_RESULTS) {
+            JsonObject current = (JsonObject) jsonArray.get(currencyCounter++);
             //System.out.println("Processing item: " + current);
 
             if (current.get("type_is_crypto").getAsInt() != 1 || !current.has("price_usd")

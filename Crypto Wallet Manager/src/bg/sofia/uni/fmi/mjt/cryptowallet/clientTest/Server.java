@@ -63,6 +63,10 @@ public class Server {
                                 processCommand(key);
                             }
                         } catch (IOException e) {
+                            if (e.getMessage() == null) {
+                                System.out.println("A client exited");
+                                continue;
+                            }
                             System.err.println("Error handling client: " + e.getMessage());
                             closeClient(key);
                         }
@@ -136,7 +140,7 @@ public class Server {
             Database database = new Database(FILE_PATH);
             ApiCall apiCall = new ApiCall(HttpClient.newHttpClient(), apiKey);
 
-            CommandExecutor commandExecutor = new CommandExecutor(apiKey, database, apiCall);
+            CommandExecutor commandExecutor = new CommandExecutor(database, apiCall);
             Server server = new Server(commandExecutor);
 
             server.start();
